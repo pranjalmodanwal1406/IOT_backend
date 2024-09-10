@@ -12,6 +12,7 @@ const {
     resetPasswordPatient,
     useraddingPatient,
     getPatients,
+    getPatientDetail,
  } = require('../controllers/patientController')
 
 
@@ -22,6 +23,9 @@ const router = express.Router();
 
 
 router.get('/getPatients/:userId', getPatients);
+router.get('/getPatientDetail/:id', getPatientDetail);
+
+
 router.post('/useraddingPatient', useraddingPatient);
 router.post('/registerPatient', registerPatient);
 router.get('/:id', 

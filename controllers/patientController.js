@@ -77,22 +77,22 @@ const getPatients = async (req, res, next) => {
       });
     }
 
-    // For each patient, fetch the associated measure data
-    const patientsWithMeasureData = await Promise.all(
-      patients.map(async (patient) => {
-        const measureData = await MeasureData.find({ userId: patient.userId });
-        return {
-          ...patient.toObject(), // Convert Mongoose document to plain JS object
-          measureData // Attach the measureData to each patient
-        };
-      })
-    );
+    // // For each patient, fetch the associated measure data
+    // const patientsWithMeasureData = await Promise.all(
+    //   patients.map(async (patient) => {
+    //     const measureData = await MeasureData.find({ userId: patient.userId });
+    //     return {
+    //       ...patient.toObject(), // Convert Mongoose document to plain JS object
+    //       measureData // Attach the measureData to each patient
+    //     };
+    //   })
+    // );
 
     return res.status(200).json({
       message: "Patients and their measure data retrieved successfully",
       success: true,
       status: 200,
-      data: patientsWithMeasureData
+      data: patients
     });
 
   } catch (error) {
@@ -101,6 +101,54 @@ const getPatients = async (req, res, next) => {
   }
 };
 
+
+
+// getPatientDetail 
+const getPatientDetail = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log("patientId", id);
+
+    // Validation
+    if (!id) {
+      return next(createError(400, "patientId is required"));
+    }
+
+    // Fetch patient by ID
+    const patient = await Patient.findById(id);
+
+    if (!patient) {
+      return res.status(200).json({
+        message: "No patient detail found for this user",
+        success: false,
+        status: 200,
+        data: []
+      });
+    }
+
+    // Fetch the associated measure data for the patient
+    const measureData = await MeasureData.find({ userId: patient.userId });
+
+    const patientWithMeasureData = {
+      ...patient.toObject(), // Convert Mongoose document to plain JS object
+      measureData // Attach the measureData to the patient
+    };
+
+    console.log(patientWithMeasureData);
+
+    return res.status(200).json({
+      message: "Patient and their measure data retrieved successfully",
+      success: true,
+      status: 200,
+      data: patientWithMeasureData
+    });
+
+  } catch (error) {
+    console.error("Error fetching patient and their measure data:", error);
+    return next(createError(500, "Something went wrong"));
+  }
+};
 
 
 
@@ -365,5 +413,6 @@ module.exports = {
   resetPasswordPatient,
   useraddingPatient,
   getPatients,
+  getPatientDetail,
  };
   
