@@ -11,6 +11,7 @@ const authRoute = require('./routes/authRoute');
 const userRoute = require('./routes/userRoute');
 const patientRoute = require('./routes/patientRoute');
 const measureRoutes = require('./routes/measureRoute');
+const {createPDF} = require('./functions/generatepdf')
 
 // Environment variables
 const PORT = process.env.PORT || 9006;
@@ -40,6 +41,32 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(bodyParser.json());
+
+app.post('/generate-pdf', async (req, res) => {
+  try {
+    const { clientId, clientName } = req.body;
+
+    // Validate request body
+    if (!clientId || !clientName) {
+      return res.status(400).send('Client ID and Client Name are required');
+    }
+
+    // Create PDF with the provided client data
+    const pdfData = await createPDF({ clientId, clientName });
+
+    // Set headers and send the generated PDF as a response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfData.pdfBuffer.length);
+
+    // Send the generated PDF file
+    res.send(pdfData.pdfBuffer);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).send('Failed to generate PDF');
+  }
+});
+
 
 // Routes
 app.use('/api/role', roleRoute);

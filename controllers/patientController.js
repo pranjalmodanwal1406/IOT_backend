@@ -54,7 +54,55 @@ const useraddingPatient = async (req, res, next) => {
 };
 
 
+const updatePatient = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { lastname, firstname, DOB, userId } = req.body;
+
+    // Validation
+    if (!id) {
+      return next(createError(400, "Patient ID is required"));
+    }
+    if (!lastname || !firstname || !DOB || !userId) {
+      return next(createError(400, "All fields (lastname, firstname, DOB, userId) are required"));
+    }
+
+    // Find the patient by ID
+    const patient = await Patient.findById(id);
+
+    if (!patient) {
+      return res.status(404).json({
+        message: "Patient not found",
+        success: false,
+        status: 404
+      });
+    }
+
+    // Check if the SSN already exists for another patient (optional)
+
+
+    // Update patient details
+    patient.lastname = lastname;
+    patient.firstname = firstname;
+    patient.DOB = DOB;
+    patient.userId = userId;
+
+    await patient.save(); // Save the updated patient details
+
+    return res.status(200).json({
+      message: "Patient updated successfully",
+      success: true,
+      status: 200,
+      data: patient 
+    });
+
+  } catch (error) {
+    console.error("Error updating patient:", error);
+    return next(createError(500, "Something went wrong"));
+  }
+};
  
+
 // get 
 const getPatients = async (req, res, next) => {
   try {
@@ -100,7 +148,6 @@ const getPatients = async (req, res, next) => {
     return next(createError(500, "Something went wrong"));
   }
 };
-
 
 
 // getPatientDetail 
@@ -149,9 +196,6 @@ const getPatientDetail = async (req, res, next) => {
     return next(createError(500, "Something went wrong"));
   }
 };
-
-
-
 
 
 //to Create patient
@@ -209,46 +253,45 @@ const getAllPatients = async (req, res, next) => {
 
 
 //update patient
-const updatePatient = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { name, email, password, medicalHistory } = req.body;
+// const updatePatient = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const { name,  password, medicalHistory } = req.body;
 
-    if (email && !validator.isEmail(email)) {
-      return next(createError(400, 'Invalid email format', false));
-    }
-    if (password && password.length < 8) {
-      return next(createError(400, 'Password must be at least 8 characters long', false));
-    }
-    if (name && (name.length <= 1 || name.length >= 25)) {
-      return next(createError(400, 'Name must be between 2 to 25 characters long', false));
-    }
+//     if (email && !validator.isEmail(email)) {
+//       return next(createError(400, 'Invalid email format', false));
+//     }
+//     if (password && password.length < 8) {
+//       return next(createError(400, 'Password must be at least 8 characters long', false));
+//     }
+//     if (name && (name.length <= 1 || name.length >= 25)) {
+//       return next(createError(400, 'Name must be between 2 to 25 characters long', false));
+//     }
 
-    // Check if a patient with the same email already exists
-    if (email) {
-      const existingPatient = await Patient.findOne({ email, _id: { $ne: id } });
-      if (existingPatient) {
-        return next(createError('Email already in use by another patient', 409, false));
-      }
-    }
+//     // Check if a patient with the same email already exists
+//     if (email) {
+//       const existingPatient = await Patient.findOne({ email, _id: { $ne: id } });
+//       if (existingPatient) {
+//         return next(createError('Email already in use by another patient', 409, false));
+//       }
+//     }
 
-    const updatedFields = {};
-    if (name) updatedFields.name = name;
-    if (email) updatedFields.email = email;
-    if (password) updatedFields.password = await bcrypt.hash(password, 10);
-    if (medicalHistory) updatedFields.medicalHistory = medicalHistory;
+//     const updatedFields = {};
+//     if (name) updatedFields.name = name;
+//     if (email) updatedFields.email = email;
+//     if (password) updatedFields.password = await bcrypt.hash(password, 10);
+//     if (medicalHistory) updatedFields.medicalHistory = medicalHistory;
 
-    const updatedPatient = await Patient.findByIdAndUpdate(id, updatedFields, { new: true });
-    if (!updatedPatient) {
-      return next(createError(404, 'Patient not found', false));
-    }
+//     const updatedPatient = await Patient.findByIdAndUpdate(id, updatedFields, { new: true });
+//     if (!updatedPatient) {
+//       return next(createError(404, 'Patient not found', false));
+//     }
 
-    res.status(200).json({ message: 'Patient updated successfully', status:200, sucess:'true' });
-  } catch (error) {
-    next(error);
-  }
-};
-
+//     res.status(200).json({ message: 'Patient updated successfully', status:200, sucess:'true' });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 
 
@@ -328,7 +371,6 @@ const deletePatient = async (req, res, next) => {
   };
 
 
-
 // forget password
 const forgetPassword = async (req, res) => {
   const { email } = req.body;
@@ -374,6 +416,7 @@ console.log(resetToken);
   }
 };
 
+
 const resetPasswordPatient = async (req, res) => {
     const { token } = req.params;
     const { newPassword } = req.body;
@@ -401,7 +444,6 @@ const resetPasswordPatient = async (req, res) => {
   };
 
 
-
 module.exports = {
   registerPatient,
   getPatient,
@@ -415,4 +457,3 @@ module.exports = {
   getPatients,
   getPatientDetail,
  };
-  

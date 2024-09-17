@@ -17,6 +17,7 @@ const createRole = async(req, res, next) => {
        return res.status(500).send("Internal Server Error!")
  }
 }
+
 // to update role
 const updateRole = async(req, res, next) => {
     try {
@@ -33,6 +34,7 @@ const updateRole = async(req, res, next) => {
        return res.status(500).send("Internal Server Error!")
  }
 }
+
 // get all roles
 const getRoles = async(req, res, next) => {
     try {
@@ -43,6 +45,7 @@ const getRoles = async(req, res, next) => {
        return res.status(500).send("Internal Server Error!")
  }
 }
+
 //delete role
 const deleteRole = async(req, res, next) => {
     try {

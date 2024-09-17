@@ -56,6 +56,7 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
+
 // getting User by id
 const getUser = async (req, res) => {
   try {
@@ -147,8 +148,6 @@ const updateUser = async (req, res, next) => {
 };
 
 
-
-
 // Function to edit User details
 const editProfile = async (req, res, next) => {
   try {
@@ -220,7 +219,6 @@ const deleteUser = async (req, res, next) => {
 };
 
 
-
 // forget password
 const forgetPassword = async (req, res) => {
   const { email } = req.body;
@@ -266,6 +264,7 @@ console.log(resetToken);
   }
 };
 
+
 const resetPasswordUser = async (req, res) => {
   const { token } = req.params;
   const { newPassword } = req.body;
@@ -291,7 +290,6 @@ const resetPasswordUser = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
-
 
 
 // Logout method
@@ -341,7 +339,6 @@ const contactUs = async (req, res, next) => {
     return next(createError('Something went wrong', 500, 'false'));
   }
 };
-
 
 
 //deactivate user account 
