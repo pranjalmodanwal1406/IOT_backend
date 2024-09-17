@@ -1,223 +1,499 @@
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
-const { createCanvas } = require('canvas'); // Required to generate the chart
+const Chart = require('chart.js/auto'); 
+const { createCanvas } = require('canvas')
+const measuredataModel = require('../models/measuredataModel');
+const Patient = require('../models/patientModel');
 
-// Function to generate the chart as an image using Chart.js and canvas
-const generateChart = async () => {
+const generateChart = async (data, graphData) => {
   const canvas = createCanvas(600, 400);
   const ctx = canvas.getContext('2d');
-  
-  // Load Chart.js library to the Node environment
-  const Chart = require('chart.js/auto');
 
-  // Create the chart using static data (or you can pass dynamic data)
+  // Extract time, flow, and volume from the dynamic data
+  const labels = data.map(d => parseFloat(d.time));
+  const flowData = data.map(d => parseFloat(d.flow) || 0);
+  const volumeData = data.map(d => parseFloat(d.volume) || 0);
+
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45], // Time in seconds
+      labels: labels,
       datasets: [
         {
           label: 'Flow (ml/sec)',
-          data: [0, 10, 30, 45, 60, 75, 60, 45, 30, 0], // Static flow data
+          data: flowData,
           borderColor: 'blue',
           borderWidth: 2,
           fill: false,
-          yAxisID: 'yFlow', // Specify first Y-axis
+          yAxisID: 'left-y-axis', // Assign to left y-axis
+          pointRadius: 0, // No dots
         },
         {
           label: 'Volume (ml)',
-          data: [0, 5, 15, 25, 45, 50, 40, 30, 20, 10], // Static volume data
+          data: volumeData,
           borderColor: 'green',
           borderWidth: 2,
           fill: false,
-          yAxisID: 'yVolume', // Specify second Y-axis
+          yAxisID: 'right-y-axis', // Assign to right y-axis
+          pointRadius: 0, // No dots
         }
       ]
     },
     options: {
       scales: {
         x: {
+          type: 'linear', // Set the axis type to linear for numeric values
           title: {
             display: true,
-            text: 'Time (sec)'
+            text: 'Time (sec)',
+            color: 'black'
+          },
+          ticks: {
+            min: 0, // Set minimum value for the x-axis
+            max: graphData.flowTime+10, // Set maximum value for the x-axis
+            stepSize: 5, // Set the step size for the x-axis ticks
+            color: 'black',
+            callback: function(value) {
+              return `${value}`; // Format ticks (optional)
+            },
+            minRotation: 0, // Ensure labels are horizontal
+            maxRotation: 0  // Ensure labels are horizontal
           }
         },
-        yFlow: {
-          type: 'linear', // Left Y-axis (for Flow)
-          position: 'left',
+        'left-y-axis': {
           title: {
             display: true,
             text: 'Flow (ml/sec)',
+            color: 'green'
+          },
+          ticks: {
+            min: 0, // Set minimum value for y-axis
+            max: 100, // Set maximum value for y-axis
+            stepSize: 10, // Display ticks every 10 units
+            color: 'green',
+            callback: function(value) {
+              return `${value} `; // Customize label for each tick
+            }
           },
           beginAtZero: true,
+          position: 'left',
         },
-        yVolume: {
-          type: 'linear', // Right Y-axis (for Volume)
-          position: 'right',
+        'right-y-axis': {
           title: {
             display: true,
             text: 'Volume (ml)',
+            color: 'blue'
+          },
+          ticks: {
+            min: 0, // Set minimum value for y-axis
+            max: 100, // Set maximum value for y-axis
+            stepSize: 20, // Display ticks every 20 units
+            color: 'blue',
+            callback: function(value) {
+              return `${value}`; // Customize label for each tick
+            }
           },
           beginAtZero: true,
+          position: 'right',
           grid: {
-            drawOnChartArea: false, // Prevent grid lines from being drawn on the right Y-axis
-          },
+            drawOnChartArea: false,
+          }
         }
       }
     }
   });
 
-  // Save the chart as an image
-  const buffer = canvas.toBuffer('image/png');
-  const filePath = path.join(__dirname, 'chart.png');
-  fs.writeFileSync(filePath, buffer);
 
-  return filePath;
+  // Calculate chart dimensions
+  const buffer = canvas.toBuffer('image/png');
+  const image = await canvas.toBuffer();
+  return { buffer, width: canvas.width, height: canvas.height };
 };
 
-// Function to create the PDF
-const createPDF = async (client, tableData = []) => {
+
+
+const createPDF = async (userid, date) => {
   try {
-    // Create the PDF document
+    const parsedDate = new Date(date);
+    const patientData = await Patient.findOne({ userId: userid }).exec();
+    const graphData = await measuredataModel.findOne({
+      userId: userid,
+      date: parsedDate
+    }).exec();
+
+    // console.log(graphData)
+    const calcData = graphData.data;
+
+    if (!graphData) {
+      throw new Error('No measurement data found for the given userId and date');
+    }
+    // console.log('GraphData:', graphData);
+
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([600, 850]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Title
-    page.drawText('UROFLOWMETRY', {
-      x: 210,
-      y: 800,
-      size: 24,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
+    const margin = 50;
+    const pageWidth = page.getWidth();
+    const pageHeight = page.getHeight();
+    const columnWidth = (pageWidth - 3 * margin) / 2;
 
-    // Patient details section
-    const leftColumnX = 50;
-    const rightColumnX = 350;
-    const yOffset = 740;
-    
-    page.drawText(`Patient name: ${client.clientName}`, {
-      x: leftColumnX,
-      y: yOffset,
-      size: 12,
-      font: font,
-    });
-    page.drawText(`Birthday: ${client.birthday}`, {
-      x: rightColumnX,
-      y: yOffset,
-      size: 12,
-      font: font,
-    });
-
-    page.drawText(`Mother name: ${client.motherName}`, {
-      x: leftColumnX,
-      y: yOffset - 20,
-      size: 12,
-      font: font,
-    });
-    page.drawText(`Identity: ${client.identity}`, {
-      x: rightColumnX,
-      y: yOffset - 20,
-      size: 12,
-      font: font,
-    });
-
-    page.drawText(`Measure time: ${client.measureTime}`, {
-      x: leftColumnX,
-      y: yOffset - 40,
-      size: 12,
-      font: font,
-    });
-
-    // Table header and structure
-    const tableStartY = 650;
-    const rowHeight = 20;
-    const colWidths = [150, 100, 100, 100]; // Widths for the table columns
-    const headers = ['Marker data', 'Left', 'Difference', 'Right'];
-    const tableXStart = 50;
-
-    // Check that tableData and colWidths exist and are valid
-    if (!Array.isArray(tableData)) {
-      throw new Error("tableData must be an array");
-    }
-
-    // Draw table header and add lines
-    headers.forEach((header, index) => {
-      const x = tableXStart + (colWidths.slice(0, index).reduce((a, b) => a + b, 0) || 0);
-      page.drawText(header, { x, y: tableStartY, size: 12, font: font });
-
-      // Draw vertical lines for the header
-      page.drawLine({
-        start: { x: tableXStart, y: tableStartY + 10 },
-        end: { x: tableXStart + colWidths.reduce((a, b) => a + b, 0), y: tableStartY + 10 },
-        thickness: 1,
-        color: rgb(0, 0, 0),
-      });
-    });
-
-    // Draw horizontal lines (for rows and columns)
-    const totalRows = tableData.length;
-    const totalHeight = rowHeight * totalRows;
-
-    // Draw vertical column lines
-    for (let i = 0; i <= headers.length; i++) {
-      const x = tableXStart + (colWidths.slice(0, i).reduce((a, b) => a + b, 0) || 0);
-      page.drawLine({
-        start: { x, y: tableStartY + 10 },
-        end: { x, y: tableStartY - totalHeight },
-        thickness: 1,
-        color: rgb(0, 0, 0),
-      });
-    }
-
-    // Draw table rows
-    tableData.forEach((row, rowIndex) => {
-      row.forEach((cell, cellIndex) => {
-        const x = tableXStart + (colWidths.slice(0, cellIndex).reduce((a, b) => a + b, 0) || 0);
-        const y = tableStartY - rowHeight * (rowIndex + 1);
-        page.drawText(cell ? cell.toString() : '', { x, y, size: 12, font: font });
-
-        // Draw horizontal line for each row
-        page.drawLine({
-          start: { x: tableXStart, y },
-          end: { x: tableXStart + colWidths.reduce((a, b) => a + b, 0), y },
-          thickness: 1,
-          color: rgb(0, 0, 0),
-        });
-      });
-    });
-
-    // Draw bottom horizontal line
+    // Draw margin lines
     page.drawLine({
-      start: { x: tableXStart, y: tableStartY - totalHeight },
-      end: { x: tableXStart + colWidths.reduce((a, b) => a + b, 0), y: tableStartY - totalHeight },
+      start: { x: margin, y: margin },
+      end: { x: pageWidth - margin, y: margin },
       thickness: 1,
       color: rgb(0, 0, 0),
     });
 
-    // Add auto-evaluation table
-    const autoEvalY = tableStartY - rowHeight * (tableData.length + 1) - 40;
-    page.drawText('Total volume: 210.25 ml', { x: leftColumnX, y: autoEvalY, size: 12, font: font });
-    page.drawText('Max. flow speed: 48.12 ml/s', { x: rightColumnX, y: autoEvalY, size: 12, font: font });
+    page.drawLine({
+      start: { x: margin, y: margin },
+      end: { x: margin, y: pageHeight - margin },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawLine({
+      start: { x: margin, y: pageHeight - margin },
+      end: { x: pageWidth - margin, y: pageHeight - margin },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawLine({
+      start: { x: pageWidth - margin, y: margin },
+      end: { x: pageWidth - margin, y: pageHeight - margin },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Title
+    page.drawText('UROFLOWMETRY', {
+      x: (pageWidth - 200) / 2,
+      y: pageHeight - margin - 30,
+      size: 24,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Draw header table
+    const leftColumnX = margin + 10;
+    const rightColumnX = margin + columnWidth + 30;
+    const headerRows = [
+      { label: 'Patient name:', value: patientData.firstname || 'N/A' },
+      { label: 'Birthday:', value: patientData.DOB ? new Date(patientData.DOB).toLocaleDateString() : 'N/A' },
+      { label: 'Mother name:', value: 'N/A' }, // Adjust according to available data
+      { label: 'Identity:', value: patientData.SSN || 'N/A' },
+      { label: 'Measure time:', value: 'N/A' } // Adjust according to available data
+    ];
+    
+    const rowHeight = 20;
+    const headerStartY = pageHeight - margin - 60;
+    
+    // Loop through each row and draw text
+    headerRows.forEach((row, index) => {
+      const yOffset = headerStartY - Math.floor(index / 2) * rowHeight;
+    
+      // Draw text for the left column
+      if (index % 2 === 0) {
+        page.drawText(`${row.label} ${row.value}`, {
+          x: leftColumnX,
+          y: yOffset,
+          size: 12,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      } else {
+        // Draw text for the right column
+        page.drawText(`${row.label} ${row.value}`, {
+          x: rightColumnX,
+          y: yOffset,
+          size: 12,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      }
+    });
+
+    // Draw data table
+    const dataTableStartY = pageHeight - margin - 140;
+    const dataTableColumnWidth = [150, 100, 100, 100];
+    const dataTableHeaders = ['Marker data', 'Left', 'Difference', 'Right'];
+    const dataTableRows = [
+      { marker: 'Time (sec):', left: '', difference: '', right: '' },
+      { marker: 'Volume (ml):', left: '', difference: '', right: '' },
+      { marker: 'Speed (ml/s):', left: '', difference: '', right: '' },
+    ];
+
+    // Draw table headers
+    dataTableHeaders.forEach((header, index) => {
+      page.drawText(header, {
+        x: margin + 10 + dataTableColumnWidth.slice(0, index).reduce((a, b) => a + b, 0),
+        y: dataTableStartY - 10,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    });
+
+    page.drawLine({
+      start: { x: margin + 5, y: dataTableStartY - 15 },
+      end: { x: margin + 5 + dataTableColumnWidth.reduce((a, b) => a + b + 10, 0), y: dataTableStartY - 15 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Draw table rows
+    dataTableRows.forEach((row, rowIndex) => {
+      const rowY = dataTableStartY - (rowIndex + 1) * 20;
+      page.drawText(row.marker, {
+        x: margin + 10,
+        y: rowY - 10,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.left, {
+        x: margin + dataTableColumnWidth[0],
+        y: rowY - 10,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.difference, {
+        x: margin + dataTableColumnWidth[0] + dataTableColumnWidth[1],
+        y: rowY - 10,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.right, {
+        x: margin + dataTableColumnWidth[0] + dataTableColumnWidth[1] + dataTableColumnWidth[2],
+        y: rowY - 10,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    });
+
+    // Draw table borders
+    const dataTableHeight = (dataTableRows.length + 1) * 20;
+    const dataTableWidth = dataTableColumnWidth.reduce((a, b) => a + b, 0) + margin;
+
+    // Top border
+    page.drawLine({
+      start: { x: margin + 5, y: dataTableStartY + 5 },
+      end: { x: margin - 5 + dataTableWidth, y: dataTableStartY + 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Bottom border
+    page.drawLine({
+      start: { x: margin + 5, y: dataTableStartY - dataTableHeight },
+      end: { x: margin - 5 + dataTableWidth, y: dataTableStartY - dataTableHeight },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Vertical borders
+    let currentX = margin + 5;
+    dataTableColumnWidth.forEach((width) => {
+      page.drawLine({
+        start: { x: currentX, y: dataTableStartY + 5 },
+        end: { x: currentX, y: dataTableStartY - dataTableHeight },
+        thickness: 1,
+        color: rgb(0, 0, 0),
+      });
+      currentX += width;
+    });
+
+    page.drawLine({
+      start: { x: currentX + 40, y: dataTableStartY + 5 },
+      end: { x: currentX + 40, y: dataTableStartY - dataTableHeight },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
 
     // Embed chart
-    const chartPath = await generateChart();
-    const chartImageBytes = fs.readFileSync(chartPath);
-    const chartImage = await pdfDoc.embedPng(chartImageBytes);
-    const chartDims = chartImage.scale(0.5);
-    
+    const { buffer: chartBuffer, width: chartWidth, height: chartHeight } = await generateChart(calcData, graphData);
+    const chartImage = await pdfDoc.embedPng(chartBuffer);
+
+    // Calculate chart and table positions
+    const chartYPosition = pageHeight - margin - chartHeight - 100; // Adjust vertical position of chart
+    const autoEvalTableStartY = chartYPosition - 20; // Position table below chart
+
+    // Draw chart
     page.drawImage(chartImage, {
-      x: 50,
-      y: autoEvalY - 300,
-      width: chartDims.width,
-      height: chartDims.height,
+      x: margin,
+      y: chartYPosition,
+      width: chartWidth-120,
+      height: chartHeight-150,
     });
+    page.drawLine({
+      start: { x: margin, y:275 },
+      end: { x: margin+500, y: 275 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Draw auto-evaluation table heading
+    page.drawText('Auto-Evaluation Summary', {
+      x: margin+160,
+      y: autoEvalTableStartY-20,
+      size: 14,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Draw auto-evaluation table
+    const autoEvalRows = [
+      { label1: 'Total volume:', value1: `${graphData.totalVolume}`, label2: 'Total measure time:', value2:`${graphData.totalMeasureTime} ` },
+      { label1: 'Max. flow speed:', value1:`${graphData.maxFlowSpeed} `, label2: 'Flow time:', value2: `${graphData.flowTime} ` },
+      { label1: 'Average flow speed:', value1: `${graphData.averageFlowSpeed} `, label2: 'Time of max. speed:', value2: `${graphData.timeOfMaxSpeed} ` },
+    ];
+
+    // Table headers
+    // page.drawText('Label', { x: margin+150, y: autoEvalTableStartY - 50, size: 12, font, color: rgb(0, 0, 0) });
+    // page.drawText('Value', { x: margin + 150, y: autoEvalTableStartY - 50, size: 12, font, color: rgb(0, 0, 0) });
+    // page.drawText('Label', { x: margin + 300, y: autoEvalTableStartY - 50, size: 12, font, color: rgb(0, 0, 0) });
+    // page.drawText('Value', { x: margin + 450, y: autoEvalTableStartY - 50, size: 12, font, color: rgb(0, 0, 0) });
+
+    // Draw table rows
+    autoEvalRows.forEach((row, index) => {
+      const yOffset = autoEvalTableStartY - (index + 1) * 20;
+      page.drawText(row.label1, {
+        x: margin+10,
+        y: yOffset-20,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.value1, {
+        x: margin + 135,
+        y: yOffset-20,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.label2, {
+        x: margin + 255,
+        y: yOffset-20,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(row.value2, {
+        x: margin + 405,
+        y: yOffset-20,
+        size: 12,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    });
+
+    // Draw table borders
+    const autoEvalTableHeight = (autoEvalRows.length + 1) * 20 + 50;
+    const autoEvalTableWidth = 500; // Total width of the table
+
+    // Top border
+    page.drawLine({
+      start: { x: margin, y: autoEvalTableStartY - 25 },
+      end: { x: margin + autoEvalTableWidth, y: autoEvalTableStartY - 25 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Bottom border
+    page.drawLine({
+      start: { x: margin, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      end: { x: margin + autoEvalTableWidth, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    // Vertical borders
+    page.drawLine({
+      start: { x: margin, y: autoEvalTableStartY - 25 },
+      end: { x: margin, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    // page.drawLine({
+    //   start: { x: margin + 130, y: autoEvalTableStartY - 25 },
+    //   end: { x: margin + 130, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+    //   thickness: 1,
+    //   color: rgb(0, 0, 0),
+    // });
+    page.drawLine({
+      start: { x: margin + 250, y: autoEvalTableStartY - 25 },
+      end: { x: margin + 250, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    // page.drawLine({
+    //   start: { x: margin + 400, y: autoEvalTableStartY - 25 },
+    //   end: { x: margin + 400, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+    //   thickness: 1,
+    //   color: rgb(0, 0, 0),
+    // });
+    page.drawLine({
+      start: { x: margin + 500, y: autoEvalTableStartY - 25 },
+      end: { x: margin + 500, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText('Report', {
+      x: margin+225,
+      y: 180,
+      size: 14,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    page.drawLine({
+      start: { x: margin, y: 175 },
+      end: { x: margin+500, y: 175 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    
+    // Draw stamp and signature area
+    page.drawEllipse({
+      x: 450, // Center horizontally
+      y: 120, // Adjust vertical position near the bottom
+      xScale: 25, // Radius for x-axis
+      yScale: 25, // Radius for y-axis (same for a perfect circle)
+      borderColor: rgb(0, 0, 0), // Color of the circle's border
+      borderWidth: 1, // Thickness of the border
+    });
+    page.drawText('stamp', {
+      x: margin+385,
+      y: 115,
+      size: 12,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    page.drawLine({
+      start: { x: margin+330, y: 70 },
+      end: { x: margin+470, y: 70 },
+      thickness: 0.5,
+      color: rgb(0, 0, 0),
+    });
+    page.drawText(' Urodoc Lite v2.43  (C) 2022, Right licenced to Advin Health Care', {
+      x: margin+60,
+      y: 35,
+      size: 12,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
 
     // Save the PDF
     const pdfBytes = await pdfDoc.save();
-    const filePath = path.join(__dirname, `Uroflowmetry-Report-${client.clientId}.pdf`);
+    const filePath = path.join(__dirname, `Client-Report-${patientData.firstname}.pdf`);
     fs.writeFileSync(filePath, pdfBytes);
 
     return { pdfBuffer: Buffer.from(pdfBytes), filePath };

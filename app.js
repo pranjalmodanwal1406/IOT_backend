@@ -5,13 +5,15 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
+
 // Import routes
 const roleRoute = require('./routes/roleRoute');
 const authRoute = require('./routes/authRoute');
 const userRoute = require('./routes/userRoute');
 const patientRoute = require('./routes/patientRoute');
 const measureRoutes = require('./routes/measureRoute');
-const {createPDF} = require('./functions/generatepdf')
+const {createPDF} = require('./functions/generatepdf');
+
 
 // Environment variables
 const PORT = process.env.PORT || 9006;
@@ -45,28 +47,25 @@ app.use(bodyParser.json());
 
 app.post('/generate-pdf', async (req, res) => {
   try {
-    const { clientId, clientName } = req.body;
+    const { userId, date } = req.body;
 
-    // Validate request body
-    if (!clientId || !clientName) {
-      return res.status(400).send('Client ID and Client Name are required');
+    // Validate input
+    if (!userId || !date) {
+      return res.status(400).json({ error: 'Both userId and date are required' });
     }
 
-    // Create PDF with the provided client data
-    const pdfData = await createPDF({ clientId, clientName });
+    // Generate the PDF
+    const { pdfBuffer, filePath } = await createPDF(userId, date);
 
-    // Set headers and send the generated PDF as a response
+    // Send the PDF file as response
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfData.pdfBuffer.length);
-
-    // Send the generated PDF file
-    res.send(pdfData.pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename=Client-Report-${userId}.pdf`);
+    res.send(pdfBuffer);
   } catch (error) {
     console.error('Error generating PDF:', error);
-    res.status(500).send('Failed to generate PDF');
+    res.status(500).json({ error: 'PDF generation failed' });
   }
 });
-
 
 // Routes
 app.use('/api/role', roleRoute);
