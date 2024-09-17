@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 
 const MeasureSchema = new Schema({
 userId: { type: String, required: true },
-  date: { type: Date, required: true },
+  date: { type: Number, required: true },
   totalVolume: { type: String, required: true },
   totalMeasureTime: { type: String, required: true }, 
   maxFlowSpeed: { type: String, required: true }, 

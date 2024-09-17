@@ -85,6 +85,7 @@ const updatePatient = async (req, res, next) => {
     patient.lastname = lastname;
     patient.firstname = firstname;
     patient.DOB = DOB;
+
     patient.userId = userId;
 
     await patient.save(); // Save the updated patient details

@@ -115,15 +115,16 @@ const generateChart = async (data, graphData) => {
 
 const createPDF = async (userid, date) => {
   try {
-    const parsedDate = new Date(date);
+    // const parsedDate = new Date(date);
     const patientData = await Patient.findOne({ userId: userid }).exec();
     const graphData = await measuredataModel.findOne({
       userId: userid,
-      date: parsedDate
+      date: date
     }).exec();
 
     // console.log(graphData)
     const calcData = graphData.data;
+    console.log("calcData",calcData);
 
     if (!graphData) {
       throw new Error('No measurement data found for the given userId and date');

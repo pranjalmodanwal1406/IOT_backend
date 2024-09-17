@@ -10,5 +10,5 @@ router.get('/', measureController.getAllMeasures);
 router.get('/:id', measureController.getMeasureById);
 router.patch('/:id', measureController.updateMeasure);
 router.delete('/:id', measureController.deleteMeasure);
-
+router.get('/data/:id', measureController.getPatientFullData);
 module.exports = router;

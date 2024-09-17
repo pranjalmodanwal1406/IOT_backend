@@ -1,5 +1,7 @@
 const User = require('../models/userModel');
 const MeasureData = require('../models/measuredataModel');
+const createError = require("../middleware/error");
+const createSuccess = require("../middleware/success");
 
 exports.getAllMeasures = async (req, res) => {
   try {
@@ -70,5 +72,40 @@ exports.deleteMeasure = async (req, res) => {
     res.json({ message: 'Measure deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message, success: 'false', status: '400' });
+  }
+};
+
+exports.getPatientFullData = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log("patientId", id);
+
+    // Validation
+    if (!id) {
+      return next(createError(400, "patientId is required"));
+    }
+
+    // Fetch patient by ID
+    const patient = await MeasureData.find({userId:id});
+
+    if (!patient) {
+      return res.status(200).json({
+        message: "No patient detail found for this user",
+        success: false,
+        status: 200,
+        data: []
+      });
+    }
+    return res.status(200).json({
+      message: "Patient and their measure data retrieved successfully",
+      success: true,
+      status: 200,
+      data: patient
+    });
+
+  } catch (error) {
+    console.error("Error fetching patient and their measure data:", error);
+    return next(createError(500, "Something went wrong"));
   }
 };

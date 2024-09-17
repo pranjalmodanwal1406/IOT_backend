@@ -88,7 +88,7 @@ app.use((obj, req, res, next) => {
 
 // Database connection
 mongoose.set("strictQuery", false);
-mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(MONGO_URL)
     .then(() => {
         console.log('connected to MongoDB');
         app.listen(PORT, () => {
