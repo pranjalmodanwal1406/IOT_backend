@@ -15,7 +15,7 @@ exports.getAllMeasures = async (req, res) => {
 // Data append karne ke liye
 exports.addMeasurementData = async (req, res) => {
   const { userId } = req.params;
-  const { date, data } = req.body;
+  const { date, data, totalVolume, totalMeasureTime, maxFlowSpeed, flowTime, averageFlowSpeed, timeOfMaxSpeed } = req.body;
 
   try {
     let measure = await MeasureData.findOne({ userId, date });
@@ -25,7 +25,7 @@ exports.addMeasurementData = async (req, res) => {
       measure.data.push(...data);
     } else {
       // Agar record nahi milta, to naye data ke sath record create karo
-      measure = new MeasureData({ userId, date, data });
+      measure = new MeasureData({ userId, date, data, totalVolume, totalMeasureTime, maxFlowSpeed, flowTime, averageFlowSpeed,timeOfMaxSpeed});
     }
 
     await measure.save();

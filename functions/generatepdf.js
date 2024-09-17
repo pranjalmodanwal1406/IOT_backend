@@ -23,6 +23,7 @@ const generateChart = async () => {
           borderColor: 'blue',
           borderWidth: 2,
           fill: false,
+          yAxisID: 'yFlow', // Specify first Y-axis
         },
         {
           label: 'Volume (ml)',
@@ -30,6 +31,7 @@ const generateChart = async () => {
           borderColor: 'green',
           borderWidth: 2,
           fill: false,
+          yAxisID: 'yVolume', // Specify second Y-axis
         }
       ]
     },
@@ -41,12 +43,26 @@ const generateChart = async () => {
             text: 'Time (sec)'
           }
         },
-        y: {
+        yFlow: {
+          type: 'linear', // Left Y-axis (for Flow)
+          position: 'left',
           title: {
             display: true,
-            text: 'Flow / Volume (ml/sec or ml)'
+            text: 'Flow (ml/sec)',
           },
-          beginAtZero: true
+          beginAtZero: true,
+        },
+        yVolume: {
+          type: 'linear', // Right Y-axis (for Volume)
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Volume (ml)',
+          },
+          beginAtZero: true,
+          grid: {
+            drawOnChartArea: false, // Prevent grid lines from being drawn on the right Y-axis
+          },
         }
       }
     }
