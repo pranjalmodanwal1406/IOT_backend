@@ -31,7 +31,7 @@ exports.addMeasurementData = async (req, res) => {
     }
 
     await measure.save();
-    res.status(200).json({ message: 'Data added successfully', success: 'true', status:'200', measure });
+    res.status(200).json({ message: 'Data added successfully', success: 'true', status:'200' });
   } catch (error) {
     res.status(500).json({ message: 'Server Error', success: 'false', status: '400', error });
   }

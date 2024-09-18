@@ -5,16 +5,30 @@ const Chart = require('chart.js/auto');
 const { createCanvas } = require('canvas')
 const measuredataModel = require('../models/measuredataModel');
 const Patient = require('../models/patientModel');
+const annotationPlugin = require('chartjs-plugin-annotation');
+Chart.register(annotationPlugin);
 
 
 const generateChart = async (data, graphData) => {
   const canvas = createCanvas(600, 400);
   const ctx = canvas.getContext('2d');
-  
+
   // Extract time, flow, and volume from the dynamic data
   const labels = data.map(d => parseFloat(d.time));
-  const flowData = data.map(d => parseFloat(d.flow) || 0);
-  const volumeData = data.map(d => parseFloat(d.volume) || 0);
+  const flowData = data.map(d => {
+    const flowValue = parseFloat(d.flow);
+    return (!isFinite(flowValue) || isNaN(flowValue)) ? 0 : flowValue;
+  });
+
+  const volumeData = data.map(d => {
+    const volumeValue = parseFloat(d.volume);
+    return (!isFinite(volumeValue) || isNaN(volumeValue)) ? 0 : volumeValue;
+  });
+
+  // Find the maximum flow value and its index
+  const maxFlow = Math.max(...flowData);
+  const maxFlowIndex = flowData.indexOf(maxFlow);
+  const maxFlowTime = labels[maxFlowIndex]; // Corresponding time for the max flow
 
   new Chart(ctx, {
     type: 'line',
@@ -24,20 +38,20 @@ const generateChart = async (data, graphData) => {
         {
           label: 'Flow (ml/sec)',
           data: flowData,
-          borderColor: 'blue',
-          borderWidth: 2,
+          borderColor: 'green',
+          borderWidth: 1,
           fill: false,
           yAxisID: 'left-y-axis', // Assign to left y-axis
-          pointRadius: 0, // No dots
+          pointRadius: 0, // No dots except at max flow
         },
         {
           label: 'Volume (ml)',
           data: volumeData,
-          borderColor: 'green',
-          borderWidth: 2,
+          borderColor: 'blue',
+          borderWidth: 1,
           fill: false,
           yAxisID: 'right-y-axis', // Assign to right y-axis
-          pointRadius: 0, // No dots
+          pointRadius: 0, // No dots except at max flow
         }
       ]
     },
@@ -52,8 +66,8 @@ const generateChart = async (data, graphData) => {
           },
           ticks: {
             min: 0, // Set minimum value for the x-axis
-            max: graphData.flowTime+10, // Set maximum value for the x-axis
-            stepSize: 5, // Set the step size for the x-axis ticks
+            max: graphData.flowTime + 10, // Set maximum value for the x-axis
+            stepSize: 10, // Set the step size for the x-axis ticks
             color: 'black',
             callback: function(value) {
               return `${value}`; // Format ticks (optional)
@@ -101,16 +115,38 @@ const generateChart = async (data, graphData) => {
             drawOnChartArea: false,
           }
         }
+      },
+      plugins: {
+        annotation: {
+          annotations: {
+            maxFlowPoint: {
+              type: 'point',
+              xValue: maxFlowTime, // Position of max flow on the x-axis
+              yValue: maxFlow, // Position of max flow on the y-axis
+              backgroundColor: 'red', // Color of the point
+              radius: 5, // Size of the point
+              label: {
+                content: `Max: ${maxFlow} ml/sec`,
+                enabled: true,
+                position: 'top',
+                color: 'red',
+                font: {
+                  size: 14
+                }
+              }
+            }
+          }
+        }
       }
     }
   });
-  
-  
-  // Calculate chart dimensions
+
+  // Generate chart buffer
   const buffer = canvas.toBuffer('image/png');
   const image = await canvas.toBuffer();
   return { buffer, width: canvas.width, height: canvas.height };
 };
+
 
 
 
@@ -184,8 +220,8 @@ const createPDF = async (userid, date) => {
     const leftColumnX = margin + 10;
     const rightColumnX = margin + columnWidth + 30;
     const headerRows = [
-      { label: 'Patient name:', value: patientData.firstname || 'N/A' },
-      { label: 'Birthday:', value: patientData.DOB ? new Date(patientData.DOB).toLocaleDateString() : 'N/A' },
+      { label: 'Patient name:', value: `${patientData.firstname} ${patientData.lastname}` || 'N/A' },
+      { label: 'DOB:', value: patientData.DOB ? new Date(patientData.DOB).toLocaleDateString() : 'N/A' },
       { label: 'Identity:', value: patientData.SSN || 'N/A' }
     ];
     
@@ -483,7 +519,7 @@ const createPDF = async (userid, date) => {
       thickness: 0.5,
       color: rgb(0.7, 0.7, 0.7),
     });
-    page.drawText(' Urodoc Lite v2.43  (C) 2022, Right licenced to Advin Health Care', {
+    page.drawText(' Urodoc Lite v2.43  (C) 2024, Right licenced to Advin Health Care', {
       x: margin+60,
       y: 35,
       size: 12,
