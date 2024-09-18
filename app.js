@@ -45,7 +45,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(bodyParser.json());
 
-app.post('/generate-pdf', async (req, res) => {
+app.post('/api/patient/generate-pdf', async (req, res) => {
   try {
     const { userId, date } = req.body;
 

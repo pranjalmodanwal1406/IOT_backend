@@ -6,10 +6,11 @@ const { createCanvas } = require('canvas')
 const measuredataModel = require('../models/measuredataModel');
 const Patient = require('../models/patientModel');
 
+
 const generateChart = async (data, graphData) => {
   const canvas = createCanvas(600, 400);
   const ctx = canvas.getContext('2d');
-
+  
   // Extract time, flow, and volume from the dynamic data
   const labels = data.map(d => parseFloat(d.time));
   const flowData = data.map(d => parseFloat(d.flow) || 0);
@@ -103,8 +104,8 @@ const generateChart = async (data, graphData) => {
       }
     }
   });
-
-
+  
+  
   // Calculate chart dimensions
   const buffer = canvas.toBuffer('image/png');
   const image = await canvas.toBuffer();
@@ -124,16 +125,17 @@ const createPDF = async (userid, date) => {
 
     // console.log(graphData)
     const calcData = graphData.data;
-    console.log("calcData",calcData);
+    // console.log("calcData",calcData);
 
     if (!graphData) {
       throw new Error('No measurement data found for the given userId and date');
     }
     // console.log('GraphData:', graphData);
-
+    
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([600, 850]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     const margin = 50;
     const pageWidth = page.getWidth();
@@ -174,7 +176,7 @@ const createPDF = async (userid, date) => {
       x: (pageWidth - 200) / 2,
       y: pageHeight - margin - 30,
       size: 24,
-      font,
+      font:boldFont,
       color: rgb(0, 0, 0),
     });
 
@@ -184,9 +186,7 @@ const createPDF = async (userid, date) => {
     const headerRows = [
       { label: 'Patient name:', value: patientData.firstname || 'N/A' },
       { label: 'Birthday:', value: patientData.DOB ? new Date(patientData.DOB).toLocaleDateString() : 'N/A' },
-      { label: 'Mother name:', value: 'N/A' }, // Adjust according to available data
-      { label: 'Identity:', value: patientData.SSN || 'N/A' },
-      { label: 'Measure time:', value: 'N/A' } // Adjust according to available data
+      { label: 'Identity:', value: patientData.SSN || 'N/A' }
     ];
     
     const rowHeight = 20;
@@ -200,7 +200,7 @@ const createPDF = async (userid, date) => {
       if (index % 2 === 0) {
         page.drawText(`${row.label} ${row.value}`, {
           x: leftColumnX,
-          y: yOffset,
+          y: yOffset-10,
           size: 12,
           font,
           color: rgb(0, 0, 0),
@@ -209,7 +209,7 @@ const createPDF = async (userid, date) => {
         // Draw text for the right column
         page.drawText(`${row.label} ${row.value}`, {
           x: rightColumnX,
-          y: yOffset,
+          y: yOffset-10,
           size: 12,
           font,
           color: rgb(0, 0, 0),
@@ -344,7 +344,7 @@ const createPDF = async (userid, date) => {
       x: margin+160,
       y: autoEvalTableStartY-20,
       size: 14,
-      font,
+      font:boldFont,
       color: rgb(0, 0, 0),
     });
 
@@ -366,30 +366,30 @@ const createPDF = async (userid, date) => {
       const yOffset = autoEvalTableStartY - (index + 1) * 20;
       page.drawText(row.label1, {
         x: margin+10,
-        y: yOffset-20,
+        y: yOffset-30,
         size: 12,
         font,
         color: rgb(0, 0, 0),
       });
       page.drawText(row.value1, {
         x: margin + 135,
-        y: yOffset-20,
+        y: yOffset-30,
         size: 12,
-        font,
+        font:boldFont,
         color: rgb(0, 0, 0),
       });
       page.drawText(row.label2, {
         x: margin + 255,
-        y: yOffset-20,
+        y: yOffset-30,
         size: 12,
         font,
         color: rgb(0, 0, 0),
       });
       page.drawText(row.value2, {
         x: margin + 405,
-        y: yOffset-20,
+        y: yOffset-30,
         size: 12,
-        font,
+        font:boldFont,
         color: rgb(0, 0, 0),
       });
     });
@@ -408,8 +408,8 @@ const createPDF = async (userid, date) => {
 
     // Bottom border
     page.drawLine({
-      start: { x: margin, y: autoEvalTableStartY - autoEvalTableHeight+45 },
-      end: { x: margin + autoEvalTableWidth, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      start: { x: margin, y: autoEvalTableStartY - autoEvalTableHeight+5 },
+      end: { x: margin + autoEvalTableWidth, y: autoEvalTableStartY - autoEvalTableHeight+5 },
       thickness: 1,
       color: rgb(0, 0, 0),
     });
@@ -429,7 +429,7 @@ const createPDF = async (userid, date) => {
     // });
     page.drawLine({
       start: { x: margin + 250, y: autoEvalTableStartY - 25 },
-      end: { x: margin + 250, y: autoEvalTableStartY - autoEvalTableHeight+45 },
+      end: { x: margin + 250, y: autoEvalTableStartY - autoEvalTableHeight+25 },
       thickness: 1,
       color: rgb(0, 0, 0),
     });
@@ -448,9 +448,9 @@ const createPDF = async (userid, date) => {
 
     page.drawText('Report', {
       x: margin+225,
-      y: 180,
+      y: 160,
       size: 14,
-      font,
+      font:boldFont,
       color: rgb(0, 0, 0),
     });
     page.drawLine({
@@ -464,31 +464,31 @@ const createPDF = async (userid, date) => {
     // Draw stamp and signature area
     page.drawEllipse({
       x: 450, // Center horizontally
-      y: 120, // Adjust vertical position near the bottom
+      y: 110, // Adjust vertical position near the bottom
       xScale: 25, // Radius for x-axis
       yScale: 25, // Radius for y-axis (same for a perfect circle)
-      borderColor: rgb(0, 0, 0), // Color of the circle's border
+      borderColor: rgb(0.7, 0.7, 0.7), // Color of the circle's border
       borderWidth: 1, // Thickness of the border
     });
     page.drawText('stamp', {
       x: margin+385,
-      y: 115,
+      y: 108,
       size: 12,
       font,
-      color: rgb(0, 0, 0),
+      color: rgb(0.7, 0.7, 0.7),
     });
     page.drawLine({
-      start: { x: margin+330, y: 70 },
-      end: { x: margin+470, y: 70 },
+      start: { x: margin+330, y: 65 },
+      end: { x: margin+470, y: 65 },
       thickness: 0.5,
-      color: rgb(0, 0, 0),
+      color: rgb(0.7, 0.7, 0.7),
     });
     page.drawText(' Urodoc Lite v2.43  (C) 2022, Right licenced to Advin Health Care', {
       x: margin+60,
       y: 35,
       size: 12,
       font,
-      color: rgb(0, 0, 0),
+      color: rgb(0.5, 0.5, 0.5),
     });
 
 
